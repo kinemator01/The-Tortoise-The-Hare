@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Tortoise &amp; The Hare — Midnight Forest</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: monospace;
+      color: #fff;
+    }
+    canvas { border: 2px solid #333; display: block; }
+
+    #hud {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      font-size: 13px;
+      line-height: 2;
+      background: rgba(0, 4, 12, 0.76);
+      border: 1px solid rgba(80, 200, 255, 0.16);
+      border-radius: 6px;
+      padding: 10px 14px;
+    }
+    #hud .label      { color: #5bc8f5; }
+    #hud .value      { color: #e6f4ff; }
+    #hud .ctrl       { color: #2d4a5a; font-size: 11px; margin-top: 6px; }
+    #hud .timer-val  { color: #ffffff; font-size: 15px; font-weight: bold; letter-spacing: 0.1em; }
+    #hud .gap-val    { color: #ff4545; font-size: 14px; font-weight: bold; }
+
+    /* Tile-type indicator chip */
+    #tileChip {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+      background: #333;
+      color: #aaa;
+      transition: background 0.15s, color 0.15s;
+    }
+    #tileChip.boost    { background: #0e5c38; color: #5ef5a0; }
+    #tileChip.obstacle { background: #5c1010; color: #f55e5e; }
+
+    .bar {
+      width: 180px;
+      height: 10px;
+      background: #262a2f;
+      border: 1px solid #333;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: #3a9de0;
+      transition: width 0.1s ease;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: rgba(0, 0, 0, 0.78);
+      color: #fff;
+      font-size: 24px;
+      text-align: center;
+      letter-spacing: 0.08em;
+    }
+
+    #overlay p {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    #status {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: #444;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Difficulty select overlay ── */
+    #diffOverlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 30px;
+      background: linear-gradient(165deg, #020510 0%, #060c1c 55%, #030609 100%);
+    }
+
+    /* Header */
+    #diffHeader { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    #diffStageLabel {
+      font-size: 9px; letter-spacing: 0.34em; color: #243444;
+      margin-bottom: 6px;
+    }
+    #diffGameTitle {
+      font-size: 24px; letter-spacing: 0.18em; line-height: 1.25; color: #fff;
+      text-shadow: 0 0 40px rgba(91,200,245,0.40), 0 0 100px rgba(91,200,245,0.12);
+    }
+    #diffDivider {
+      width: 180px; height: 1px; margin: 14px 0 10px;
+      background: linear-gradient(90deg, transparent, #5bc8f5 40%, #5bc8f5 60%, transparent);
+      opacity: 0.30;
+    }
+    #diffPrompt { font-size: 9px; letter-spacing: 0.38em; color: #2e4a5c; }
+
+    /* Cards */
+    #diffCards { display: flex; gap: 22px; align-items: stretch; }
+
+    .diff-card {
+      width: 264px;
+      display: flex; flex-direction: column; align-items: center;
+      border: 1px solid; border-radius: 8px;
+      padding: 30px 26px 0; cursor: pointer;
+      background: rgba(255,255,255,0.018);
+      transition: transform 0.20s ease, box-shadow 0.20s ease, background 0.20s ease;
+      position: relative; overflow: hidden;
+      font-family: monospace; color: inherit;
+      text-align: center;
+    }
+    .diff-card:hover { transform: translateY(-6px); }
+    .diff-card:focus { outline: none; }
+
+    /* Subtle top-edge glow bar */
+    .diff-card::before {
+      content: '';
+      position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
+      opacity: 0; transition: opacity 0.20s;
+    }
+    .diff-card:hover::before { opacity: 1; }
+
+    .card-num {
+      position: absolute; top: 13px; right: 17px;
+      font-size: 10px; letter-spacing: 0.14em; opacity: 0.16;
+    }
+    .card-name { font-size: 22px; letter-spacing: 0.22em; margin: 0 0 7px; font-weight: bold; }
+    .card-tag  { font-size: 10px; letter-spacing: 0.18em; opacity: 0.40; margin: 0 0 26px; }
+
+    .card-stats { width: 100%; display: flex; flex-direction: column; gap: 13px; flex: 1; margin-bottom: 26px; }
+    .stat-row   { display: flex; justify-content: space-between; align-items: center; font-size: 10px; letter-spacing: 0.13em; }
+    .stat-lbl   { opacity: 0.36; }
+    .stat-dots  { display: flex; gap: 5px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; transition: transform 0.16s; }
+    .diff-card:hover .dot.on { transform: scale(1.25); }
+    .dot.off { background: rgba(255,255,255,0.07); }
+
+    .card-cta {
+      width: calc(100% + 52px); margin: 0 -26px;
+      padding: 14px 0; text-align: center;
+      font-family: monospace; font-size: 10px; letter-spacing: 0.30em;
+      border-top: 1px solid; opacity: 0.50;
+      transition: opacity 0.18s, letter-spacing 0.18s;
+    }
+    .diff-card:hover .card-cta { opacity: 1; letter-spacing: 0.46em; }
+
+    /* Easy — green */
+    .diff-card.easy { border-color: rgba(58,217,107,0.22); color: #3ad96b; }
+    .diff-card.easy:hover { background: rgba(58,217,107,0.055); box-shadow: 0 14px 52px rgba(58,217,107,0.20), 0 0 0 1px rgba(58,217,107,0.14); }
+    .diff-card.easy::before { background: #3ad96b; }
+    .diff-card.easy .dot.on  { background: #3ad96b; box-shadow: 0 0 7px rgba(58,217,107,0.65); }
+    .diff-card.easy .card-cta { border-color: rgba(58,217,107,0.16); }
+
+    /* Normal — cyan */
+    .diff-card.normal { border-color: rgba(91,200,245,0.22); color: #5bc8f5; }
+    .diff-card.normal:hover { background: rgba(91,200,245,0.055); box-shadow: 0 14px 52px rgba(91,200,245,0.20), 0 0 0 1px rgba(91,200,245,0.14); }
+    .diff-card.normal::before { background: #5bc8f5; }
+    .diff-card.normal .dot.on  { background: #5bc8f5; box-shadow: 0 0 7px rgba(91,200,245,0.65); }
+    .diff-card.normal .card-cta { border-color: rgba(91,200,245,0.16); }
+
+    /* Hard — red */
+    .diff-card.hard { border-color: rgba(245,94,94,0.22); color: #f55e5e; }
+    .diff-card.hard:hover { background: rgba(245,94,94,0.055); box-shadow: 0 14px 52px rgba(245,94,94,0.20), 0 0 0 1px rgba(245,94,94,0.14); }
+    .diff-card.hard::before { background: #f55e5e; }
+    .diff-card.hard .dot.on  { background: #f55e5e; box-shadow: 0 0 7px rgba(245,94,94,0.65); }
+    .diff-card.hard .card-cta { border-color: rgba(245,94,94,0.16); }
+
+    /* Hare — blue */
+    .diff-card.hare { border-color: rgba(64,170,245,0.22); color: #40aaf5; }
+    .diff-card.hare:hover { background: rgba(64,170,245,0.055); box-shadow: 0 14px 52px rgba(64,170,245,0.22), 0 0 0 1px rgba(64,170,245,0.14); }
+    .diff-card.hare::before { background: #40aaf5; }
+    .diff-card.hare .dot.on  { background: #40aaf5; box-shadow: 0 0 7px rgba(64,170,245,0.65); }
+    .diff-card.hare .card-cta { border-color: rgba(64,170,245,0.16); }
+
+    /* Tortoise — olive */
+    .diff-card.tort { border-color: rgba(140,196,58,0.22); color: #8cc43a; }
+    .diff-card.tort:hover { background: rgba(140,196,58,0.055); box-shadow: 0 14px 52px rgba(140,196,58,0.22), 0 0 0 1px rgba(140,196,58,0.14); }
+    .diff-card.tort::before { background: #8cc43a; }
+    .diff-card.tort .dot.on  { background: #8cc43a; box-shadow: 0 0 7px rgba(140,196,58,0.65); }
+    .diff-card.tort .card-cta { border-color: rgba(140,196,58,0.16); }
+
+    /* Two-step overlay layout */
+    #charStep, #diffStep {
+      display: flex; flex-direction: column; align-items: center; gap: 30px; width: 100%;
+    }
+    #diffStep { display: none; }
+
+    #charCards { display: flex; gap: 22px; align-items: stretch; }
+
+    /* Difficulty step header */
+    #diffHeader2 { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    #diffPlayingAs { font-size: 10px; letter-spacing: 0.26em; color: #3a5a6a; }
+    #selectedCharName { color: #5bc8f5; }
+    #diffDivider2 { width: 160px; height: 1px; margin: 8px 0 6px;
+      background: linear-gradient(90deg, transparent, #5bc8f5 40%, #5bc8f5 60%, transparent); opacity: 0.28; }
+    #diffPrompt2 { font-size: 9px; letter-spacing: 0.38em; color: #2e4a5c; }
+
+    #btnBack {
+      font-family: monospace; font-size: 9px; letter-spacing: 0.18em;
+      color: #2d3d4d; background: transparent; border: none; cursor: pointer;
+      padding: 4px 0; transition: color 0.15s;
+    }
+    #btnBack:hover { color: #5bc8f5; }
+
+    /* Footer */
+    #diffFooter { display: flex; gap: 22px; font-size: 9px; letter-spacing: 0.11em; color: #1c2c38; }
+    #diffFooter span + span::before { content: '·'; margin-right: 22px; opacity: 0.4; }
+  </style>
+</head>
+<body>
+  <canvas id="glCanvas" width="960" height="540"></canvas>
+
+  <div id="hud">
+    <div class="label">STAGE 4 &mdash; MIDNIGHT FOREST</div>
+    <div class="label">PLAYING AS &nbsp;<span id="diffLabel" class="value">—</span></div>
+    <div class="label">CLOCK &nbsp;<span id="timer" class="value timer-val">0:00.0</span></div>
+    <div class="label">FINISH &nbsp;<span id="gap" class="value gap-val">618 m</span></div>
+    <div class="label">FPS &nbsp;<span id="fps" class="value">--</span></div>
+    <div class="label">Lane &nbsp;<span id="lane" class="value">Centre</span></div>
+    <div class="label">Speed &nbsp;<span id="speedVal" class="value">--</span></div>
+    <div class="bar"><div id="speedBar" class="bar-fill" style="width:0%"></div></div>
+    <div class="label">Boost &nbsp;<span id="boostLabel" class="value">SHIFT — BOOST READY</span></div>
+    <div class="bar"><div id="boostBar" class="bar-fill" style="width:0%"></div></div>
+    <div class="label">Tile &nbsp;<span id="tileChip">Road</span></div>
+    <div class="ctrl">W / S &nbsp; accelerate / brake</div>
+    <div class="ctrl">A / D / ← / → &nbsp; lane switch</div>
+    <div class="ctrl">Space &nbsp; jump over logs</div>
+    <div class="ctrl">Shift &nbsp; comeback boost</div>
+    <div class="ctrl">R &nbsp; restart</div>
+  </div>
+
+  <div id="overlay">
+    <div>
+      <strong id="overlayTitle">YOU DID IT!</strong>
+      <p id="overlayCopy">The rabbit caught the tortoise. Press R to restart.</p>
+      <p id="overlayBest"></p>
+    </div>
+  </div>
+
+  <div id="diffOverlay">
+
+    <!-- ── Step 1: Character select ── -->
+    <div id="charStep">
+
+      <header id="diffHeader">
+        <p id="diffStageLabel">STAGE 4 &mdash; MIDNIGHT FOREST</p>
+        <h1 id="diffGameTitle">THE TORTOISE<br>&amp; THE HARE</h1>
+        <div id="diffDivider"></div>
+        <p id="diffPrompt">CHOOSE YOUR CHARACTER</p>
+      </header>
+
+      <div id="charCards">
+
+        <button class="diff-card hare" id="btnHare">
+          <span class="card-num">01</span>
+          <h2 class="card-name">HARE</h2>
+          <p class="card-tag">Speed &amp; Agility</p>
+          <div class="card-stats">
+            <div class="stat-row">
+              <span class="stat-lbl">SPEED</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">JUMP</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot off"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">BOOST</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">SHELL</span>
+              <div class="stat-dots"><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+          </div>
+          <div class="card-cta">SELECT</div>
+        </button>
+
+        <button class="diff-card tort" id="btnTort">
+          <span class="card-num">02</span>
+          <h2 class="card-name">TORTOISE</h2>
+          <p class="card-tag">Steady &amp; Resilient</p>
+          <div class="card-stats">
+            <div class="stat-row">
+              <span class="stat-lbl">SPEED</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">JUMP</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">BOOST</span>
+              <div class="stat-dots"><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">SHELL</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></div>
+            </div>
+          </div>
+          <div class="card-cta">SELECT</div>
+        </button>
+
+      </div>
+
+      <footer id="diffFooter">
+        <span>W / S &nbsp; accel / brake</span>
+        <span>A / D &nbsp; lanes</span>
+        <span>Space &nbsp; jump</span>
+        <span>Shift &nbsp; boost / shell</span>
+        <span>R &nbsp; restart</span>
+      </footer>
+
+    </div>
+
+    <!-- ── Step 2: Difficulty select ── -->
+    <div id="diffStep">
+
+      <header id="diffHeader2">
+        <p id="diffPlayingAs">PLAYING AS &mdash; <span id="selectedCharName">HARE</span></p>
+        <div id="diffDivider2"></div>
+        <p id="diffPrompt2">SELECT DIFFICULTY</p>
+      </header>
+
+      <div id="diffCards">
+
+        <button class="diff-card easy" id="btnEasy">
+          <span class="card-num">01</span>
+          <h2 class="card-name">EASY</h2>
+          <p class="card-tag">Forest Stroll</p>
+          <div class="card-stats">
+            <div class="stat-row">
+              <span class="stat-lbl">OPPONENT</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">YOUR SPEED</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">ABILITY</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></div>
+            </div>
+          </div>
+          <div class="card-cta">PLAY</div>
+        </button>
+
+        <button class="diff-card normal" id="btnNormal">
+          <span class="card-num">02</span>
+          <h2 class="card-name">NORMAL</h2>
+          <p class="card-tag">Moonlit Chase</p>
+          <div class="card-stats">
+            <div class="stat-row">
+              <span class="stat-lbl">OPPONENT</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">YOUR SPEED</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">ABILITY</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+          </div>
+          <div class="card-cta">PLAY</div>
+        </button>
+
+        <button class="diff-card hard" id="btnHard">
+          <span class="card-num">03</span>
+          <h2 class="card-name">HARD</h2>
+          <p class="card-tag">Dead Sprint</p>
+          <div class="card-stats">
+            <div class="stat-row">
+              <span class="stat-lbl">OPPONENT</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">YOUR SPEED</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">ABILITY</span>
+              <div class="stat-dots"><span class="dot on"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span></div>
+            </div>
+          </div>
+          <div class="card-cta">PLAY</div>
+        </button>
+
+      </div>
+
+      <button id="btnBack">&larr; BACK</button>
+
+    </div>
+
+  </div>
+
+  <div id="status">
+    WebGL2 &nbsp;|&nbsp; No external libraries &nbsp;|&nbsp; Custom Mat4 &nbsp;|&nbsp;
+    Lambertian + Fog + Procedural Stars &nbsp;|&nbsp; Ortho HUD pass
+  </div>
+
+  <script src="mat4.js"></script>
+  <script src="track.js"></script>
+  <script src="main.js"></script>
+
+  <script>
+    // Called from main.js each frame to update the tile-type chip.
+    const _chip = document.getElementById('tileChip');
+    window.setTileChip = function(type) {
+      _chip.className  = ['', 'boost', 'obstacle'][type] || '';
+      _chip.textContent = ['Road', 'BOOST', 'OBSTACLE'][type] || 'Road';
+    };
+  </script>
+</body>
+</html>
