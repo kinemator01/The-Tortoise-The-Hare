@@ -1,0 +1,80 @@
+# 🌲 The Tortoise & The Hare — Midnight Forest (Stage 4) 🏃‍♂️🐢
+
+A high-performance, low-level 3D runner game built from scratch using **native WebGL2** and vanilla JavaScript. This project replicates the classic fable with an interactive, mechanics-driven twist, running at a locked **60 FPS** without a single external engine, library, or dependency.
+
+![WebGL2](https://img.shields.io/badge/Graphics-WebGL2-blue?style=flat-square)
+![Math](https://img.shields.io/badge/Matrix%20Math-Custom%20Mat4-orange?style=flat-square)
+![Dependencies](https://img.shields.io/badge/Dependencies-None%20(Vanilla)-green?style=flat-square)
+
+---
+
+## 🕹️ Live Architecture Overview
+
+The codebase is engineered around deterministic state machine synchronization, handling physics interpolation and real-time GPU matrix updates within a tight rendering context loop.
+
+### 🎮 Dual-Character Playstyles
+* **The Hare (Speed & Agility):** High acceleration and exponential velocity spikes (`SHIFT` key Comeback Boost) paired with a high-friction drag index.
+* **The Tortoise (Steady & Resilient):** Low base velocity but complete obstacle immunity via a custom 2-second shell shield dynamic (`SHIFT` key). Includes an integrated **Fable AI mechanic** that forces the opponent Hare to take tactical naps if it gets too far ahead.
+
+---
+
+## 🛠️ Technical Architecture & Features
+
+This project serves as a comprehensive exploration of low-level graphics pipeline engineering:
+
+### 📐 Linear Algebra Engine (`mat4.js`)
+* **Zero Dependencies:** Implements a custom, column-major 4x4 matrix library mapping directly to standard OpenGL conventions.
+* Handles complex affine transformations including look-at camera matrices, symmetric perspective projections, scaling, translating, and compounding arbitrary-axis rotations.
+
+### 🎨 Custom Fragment Shader Pipelines (`main.js`)
+Driven by an integer mode uniform identifier mapping to individual render sub-passes:
+* **Mode 1 (Organic Terrain Optimization):** Generates structural grass and soil displacement variations utilizing a custom **two-octave value noise algorithms** calculated in world-space coordinates (`xz` plane).
+* **Mode 2 (Procedural Sky Box Pre-pass):** Generates a dynamic starfield using a per-cell pseudo-random hash (`hash21`), modulating star size and running a time-dependent sine wave function to control real-time twinkling.
+* **Distance Fog Engine:** Implements a **quadratic distance attenuation fog pipeline** covering a $18.0 \to 55.0$ world-unit depth span, seamlessly eliminating asset popping at the horizon boundary.
+
+### 💾 Performance-First Asset Data Maps (`track.js`)
+* Tracks the race map layouts across an authoritative 160-row configuration grid matrix.
+* Calculates real-time custom 3D bounding box collision detection patterns (AABB XZ) to process frame-by-frame asset interaction variables without lagging code performance loops.
+
+---
+
+## ⌨️ Control Schematics
+
+| Key | Action | Engine Mechanics |
+| :--- | :--- | :--- |
+| `W` / `S` | Accelerate / Brake | Linearly updates velocity arrays within safe character constants. |
+| `A` / `D` or `←` / `→` | Lane Switch | Triggers a smooth geometric lane shift interpolation sequence. |
+| `Spacebar` | Jump | Applies instantaneous vertical impulse mapping to gravity vector drops. |
+| `Shift` | Special Ability | Triggers exponential acceleration decay or active obstacle shielding. |
+| `R` | System Restart | Resets clock, scores, track positions, and clears animation contexts. |
+
+---
+
+## 📊 Project Showcase
+
+### **Technical Breakdown Dashboard**
+├── index.html   # Main application shell, DOM HUD layers, CSS styling
+├── mat4.js      # Column-major matrix math array operations
+├── track.js     # Authoritative multi-row level layout array maps
+└── main.js      # GL context builder, game logic, custom GLSL pipelines
+
+
+### **Local Pipeline Stack**
+[User Inputs] ──> [Deterministic Physics State Loop]
+│
+├──> [Custom Mat4 Transform Matrix Generation]
+│
+└──> [WebGL2 Buffers] ──> [GLSL Custom Vertex/Fragment Shaders]
+
+
+---
+
+## 🚀 How to Run Locally
+
+Because this game relies completely on native web technologies, it requires **zero installation** or package management.
+
+1. Clone this repository to your local system.
+2. Launch a local development server (e.g., using VS Code's *Live Server* extension or running `python3 -m http.server` in the root directory).
+3. Open your browser and navigate to the application endpoint.
+
+*Developed with raw passion for structural code optimizations and low-level engineering architecture.*
